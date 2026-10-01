@@ -1,0 +1,6 @@
+{
+  "name": "carrom-arena",
+  "private": true,
+  "workspaces": ["packages/*", "backend", "mobile", "admin"],
+  "scripts": { "test": "npm test -w @carrom/game-core && npm test -w @carrom/backend" }
+}
