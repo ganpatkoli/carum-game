@@ -34,7 +34,7 @@ export async function startTestServer(opts: GameServerOptions & { realtime?: boo
     return { ...r.body, username: `${name}_${t}`, email: `${name}${t}@t.dev` } as { userId: string; accessToken: string; refreshToken: string; username: string; email: string };
   };
   const connect = async (token: string) => {
-    const s: Socket = client(base, { auth: { token }, transports: ['websocket'] });
+    const s: Socket = client(base, { auth: { token, deviceKey: 'test-device-' + token.slice(-6) }, transports: ['websocket'] });
     await new Promise<void>((res, rej) => { s.once('connect', () => res()); s.once('connect_error', rej); });
     return s;
   };

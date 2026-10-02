@@ -64,6 +64,8 @@ export class GameSession {
   turnStartedAt: number;
   endReason: 'completed' | 'forfeit' | 'time' = 'completed';
   forfeitedBy: Side | null = null;
+  /** connection metadata kept only so admins can review suspicious matches (shared devices / IPs) */
+  clientMeta: Record<string, { ip?: string; deviceKey?: string }> = {};
   private now: () => number;
   private turnTimeMs: number;
   private reconnectWindowMs: number;
@@ -103,6 +105,8 @@ export class GameSession {
     const team = this.teamPlayers(side);
     return team[this.pointer[side] % team.length];
   }
+
+  setClientMeta(userId: string, meta: { ip?: string; deviceKey?: string }) { this.clientMeta[userId] = { ...this.clientMeta[userId], ...meta }; }
 
   sideOf(userId: string): Side | null { return this.players.find((p) => p.userId === userId)?.team ?? null; }
   hasPlayer(userId: string) { return this.players.some((p) => p.userId === userId); }

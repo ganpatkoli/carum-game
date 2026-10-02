@@ -83,8 +83,8 @@ export async function persistFinishedMatch(db: PrismaClient, s: GameSession): Pr
     await tx.gameResult.create({ data: { matchId: s.matchId, winnerId, winnerSide: winnerTeam, reason: s.endReason, scores: s.state.scores } });
     await tx.gameEvent.createMany({
       data: [
-        ...s.log.map((l) => ({ matchId: s.matchId, userId: l.userId, type: l.type, payload: l.detail as object })),
-        ...humans.map((p) => ({ matchId: s.matchId, userId: p.userId, type: 'match_stats', payload: { ...s.stats[p.userId] } as object })),
+        ...s.log.map((l) => ({ matchId: s.matchId, userId: l.userId, type: l.type, payload: l.detail as object, ip: s.clientMeta[l.userId]?.ip, deviceKey: s.clientMeta[l.userId]?.deviceKey })),
+        ...humans.map((p) => ({ matchId: s.matchId, userId: p.userId, type: 'match_stats', payload: { ...s.stats[p.userId] } as object, ip: s.clientMeta[p.userId]?.ip, deviceKey: s.clientMeta[p.userId]?.deviceKey })),
       ],
     });
   });

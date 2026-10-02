@@ -58,7 +58,7 @@ export default function PracticeGame() {
   const myTurn = g.state.current === 0 && g.state.winner === null && !g.animating && !counting;
 
   const result: MatchResult | null = g.outcome ? { outcome: g.outcome, scores: [g.state.scores[0], g.state.scores[1]], ranked: false, note: t('play.practiceNote') } : null;
-  const status = g.state.winner !== null ? t('game.matchOver') : myTurn ? t('game.yourTurn') : g.thinking ? t('game.thinking') : t('game.opponentTurn');
+  const status = g.state.winner !== null ? t('game.matchOver') : g.state.current === 0 ? t('game.yourTurn') : g.thinking ? t('game.thinking') : t('game.opponentTurn');
 
   return (
     <GameLayout

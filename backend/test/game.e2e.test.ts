@@ -78,6 +78,8 @@ describe('ranked quick match', () => {
     expect(match).toMatchObject({ status: 'FINISHED', ranked: true });
     expect(match.result).toMatchObject({ winnerId: m.first.u.userId, reason: 'forfeit' });
     expect(match.events.some((e) => e.type === 'shot')).toBe(true);
+    // connection metadata is kept on the event log for admin review
+    expect(match.events.filter((e) => e.type === 'shot').every((e) => !!e.ip)).toBe(true);
     expect(match.events.some((e) => e.type === 'rejected_shot')).toBe(true);
     const wp = await t.db.profile.findUniqueOrThrow({ where: { userId: m.first.u.userId } });
     expect(wp).toMatchObject({ matchesPlayed: 1, matchesWon: 1, currentStreak: 1, xp: 50 });

@@ -2,6 +2,7 @@ import { Redis } from 'ioredis';
 import { buildApp } from './app';
 import { config } from './common/config';
 import { prisma } from './common/db';
+import { startJobs } from './jobs/jobs';
 import { attachGameServer } from './websocket/socket';
 
 if (process.env.NODE_ENV === 'production') {
@@ -18,6 +19,8 @@ const game = attachGameServer(app.server, prisma, redis);
 await app.listen({ port: config.port, host: '0.0.0.0' });
 console.log(`Carrom Arena API + realtime on :${config.port}`);
 
-const shutdown = async () => { game.stop(); await app.close(); await prisma.$disconnect(); redis?.disconnect(); process.exit(0); };
+const stopJobs = startJobs(prisma, { redis: redis as any, activeMatchIds: () => new Set(game.sessions.keys()) });
+
+const shutdown = async () => { stopJobs(); game.stop(); await app.close(); await prisma.$disconnect(); redis?.disconnect(); process.exit(0); };
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);

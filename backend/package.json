@@ -13,7 +13,9 @@
     "seed": "tsx prisma/seed.ts",
     "db:constraints": "tsx prisma/apply-constraints.ts",
     "build": "tsc --noEmit",
-    "db:setup": "prisma db push --skip-generate && tsx prisma/apply-constraints.ts && tsx prisma/seed.ts"
+    "db:setup": "prisma migrate deploy && tsx prisma/apply-constraints.ts && tsx prisma/seed.ts",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:check": "prisma migrate diff --from-url $DATABASE_URL --to-schema-datamodel prisma/schema.prisma --exit-code"
   },
   "dependencies": {
     "@carrom/game-core": "*",
@@ -26,16 +28,16 @@
     "ioredis": "^5.4.0",
     "jose": "^5.9.0",
     "jsonwebtoken": "^9.0.2",
+    "prisma": "^5.22.0",
     "socket.io": "^4.8.0",
+    "tsx": "^4.19.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.0.0",
-    "prisma": "^5.22.0",
     "socket.io-client": "^4.8.0",
-    "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }

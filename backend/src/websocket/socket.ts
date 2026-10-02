@@ -129,7 +129,7 @@ export function attachGameServer(http: HttpServer, db: PrismaClient, redis?: Red
     for (const id of a.humans) {
       userSession.set(id, matchId);
       queues.forEach((q) => q.remove(id));
-      for (const sk of sockets.get(id) ?? []) sk.join(room(matchId));
+      for (const sk of sockets.get(id) ?? []) { sk.join(room(matchId)); session.setClientMeta(id, metaOf(sk)); }
     }
     session.grantTime(COUNTDOWN_MS); // first turn starts after the on-screen 3-2-1
     emitMatch(session, 'game_started', { snapshot: session.snapshot(), profiles: await profilesFor(session), countdownMs: COUNTDOWN_MS, boardTheme: undefined, entryCoins: entry, mode: a.mode });
@@ -181,6 +181,11 @@ export function attachGameServer(http: HttpServer, db: PrismaClient, redis?: Red
     finishing.delete(s.matchId);
   }
 
+  const metaOf = (socket: Socket) => {
+    const fwd = process.env.TRUST_PROXY === 'true' ? String(socket.handshake.headers['x-forwarded-for'] ?? '').split(',')[0].trim() : '';
+    const dk = socket.handshake.auth?.deviceKey;
+    return { ip: fwd || socket.handshake.address, deviceKey: typeof dk === 'string' ? dk.slice(0, 120) : undefined };
+  };
   const mutedBy = async (from: string, to: string) => isBlockedEitherWay(db, from, to);
 
   io.use((socket, next) => {
@@ -203,6 +208,7 @@ export function attachGameServer(http: HttpServer, db: PrismaClient, redis?: Red
       if (s) {
         const wasPaused = s.paused;
         s.setConnected(userId, true);
+        s.setClientMeta(userId, metaOf(socket));
         socket.join(room(active));
         void profilesFor(s).then((profiles) => socket.emit('game_state', { snapshot: s.snapshot(), profiles }));
         socket.to(room(active)).emit('player_reconnected', { userId });

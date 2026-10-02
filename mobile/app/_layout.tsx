@@ -8,6 +8,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { bindMusicToSettings, initAudio } from '../src/audio/sounds';
 import { attachMatchListeners } from '../src/game/matchStore';
 import { useSkiaReady } from '../src/game/skiaReady';
+import { getInstallId } from '../src/api/device';
 import { loadLang } from '../src/i18n';
 import { syncOfflineMatches } from '../src/offline/queue';
 import { registerForPush } from '../src/push';
@@ -26,7 +27,7 @@ export default function Root() {
   const skiaReady = useSkiaReady();
 
   useEffect(() => {
-    void (async () => { await loadLang(); await initAudio(); await useAuth.getState().bootstrap(); })();
+    void (async () => { await loadLang(); await getInstallId(); await initAudio(); await useAuth.getState().bootstrap(); })();
     void useConfig.getState().load();
     return bindMusicToSettings();
   }, []);

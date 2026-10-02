@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
 import { API_URL, getAccessToken } from '../api/client';
+import { getInstallIdSync } from '../api/device';
 
 let socket: Socket | null = null;
 
@@ -8,7 +9,7 @@ export function getSocket(): Socket {
   if (!socket) {
     socket = io(API_URL, {
       transports: ['websocket'],
-      auth: (cb) => cb({ token: getAccessToken() ?? '' }),
+      auth: (cb) => cb({ token: getAccessToken() ?? '', deviceKey: getInstallIdSync() ?? undefined }),
       reconnection: true, reconnectionDelay: 500, reconnectionDelayMax: 4000,
     });
   }

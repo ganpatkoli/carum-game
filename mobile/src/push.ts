@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { api } from './api/client';
+import { getInstallId } from './api/device';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: true, shouldSetBadge: false }),
@@ -19,6 +20,6 @@ export async function registerForPush() {
     const projectId = (Constants.expoConfig?.extra as any)?.eas?.projectId ?? (Constants as any).easConfig?.projectId;
     if (!projectId) return; // push tokens need an EAS project id
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
-    await api('/me/devices', { json: { deviceKey: Device.modelId ?? Device.deviceName ?? 'device', platform: Platform.OS === 'ios' ? 'ios' : 'android', pushToken: data } });
+    await api('/me/devices', { json: { deviceKey: await getInstallId(), platform: Platform.OS === 'ios' ? 'ios' : 'android', pushToken: data } });
   } catch { /* push is optional */ }
 }
