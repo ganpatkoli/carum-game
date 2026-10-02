@@ -58,7 +58,7 @@ export default function Home() {
       {p && !p.profileComplete && <Card onPress={() => router.push('/edit-profile?first=1')} style={{ borderColor: theme.gold }}><Text style={{ color: theme.gold, fontWeight: '700' }}>{t('profile.completeBanner')} ›</Text></Card>}
 
       <Row style={{ flexWrap: 'wrap' }}>
-        <ModeCard accent icon="⚡" label={t('home.quickPlay')} onPress={() => router.push('/play')} />
+        <ModeCard accent icon="⚔️" label={t('home.quickPlay')} onPress={() => router.push('/play')} />
         <ModeCard icon="🤝" label={t('home.friends')} onPress={() => router.push('/friends')} />
         <ModeCard icon="🔑" label={t('home.privateRoom')} onPress={() => router.push('/room/create')} />
         <ModeCard icon="🎯" label={t('home.practice')} onPress={() => router.push('/game?difficulty=easy')} />

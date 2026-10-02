@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Pressable, Text, View } from 'react-native';
+import { BackHandler, Platform, Pressable, Text, View } from 'react-native';
 import { maybeShowInterstitial } from '../src/ads/ads';
 import { useCosmetics } from '../src/game/cosmetics';
 import { GameLayout } from '../src/game/GameLayout';
@@ -45,6 +45,7 @@ export default function OnlineGame() {
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(id); }, []);
   useEffect(() => { if (m.countdownMs > 0) setCountKey(m.countdownKey); }, [m.countdownKey, m.countdownMs]);
   useEffect(() => {
+    if (Platform.OS === 'web') return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => { setMenu(true); return true; });
     return () => sub.remove();
   }, []);
@@ -104,11 +105,12 @@ export default function OnlineGame() {
       centerTop={<>
         <Pill color="#0006" textColor="#ffd24a">🪙 {me?.balance ?? 0}</Pill>
         <Pill color="#0006" textColor="#7fe3ff">⭐ {m.scores[myTeam]} – {m.scores[oppTeam]}</Pill>
+        {m.phase === 'playing' && !counting && !away ? <Pill color={timeLeft < 8000 ? theme.red : '#0006'} textColor="#fff">⏳ {fmt(timeLeft)}</Pill> : null}
         {m.matchEndsAt ? <Pill color="#0006" textColor="#fff">⏱ {fmt(m.matchEndsAt - now)}</Pill> : null}
       </>}
       status={shotError ? shotError : status} statusTone={away || !m.connected ? 'warn' : 'normal'}
       bodies={bodies} falling={pb.falling} boardTheme={cosm.boardTheme} strikerColor={cosm.strikerColor}
-      side={myTeam} canShoot={myTurn} onShoot={onShoot} hint={t('game.dragHint')}
+      side={myTeam} canShoot={myTurn} onShoot={onShoot} hint={t('game.dragHint')} guideLimit={m.ranked ? 380 : undefined}
       powerAim={powerAim} onPowerAim={() => setPowerAim((v) => !v)}
       buttons={<>
         <RoundButton label="☰" onPress={() => setMenu(true)} />
@@ -124,7 +126,6 @@ export default function OnlineGame() {
             </View>
           ))}
         </View>
-        {myTurn && <View pointerEvents="none" style={{ position: 'absolute', right: 8, bottom: 8 }}><Pill color={timeLeft < 8000 ? theme.red : '#0008'}>{fmt(timeLeft)}</Pill></View>}
       </>}
       overlays={<>
         {panel && (

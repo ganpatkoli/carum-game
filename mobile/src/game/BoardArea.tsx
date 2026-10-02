@@ -20,13 +20,14 @@ interface Props {
   powerAim: boolean;
   onShoot: (shot: Shot) => void;
   hint?: string;
+  guideLimit?: number;
 }
 
 /**
  * Touch rules: touching near your baseline slides the striker; anywhere else is a slingshot
  * (pull back from the striker, longer pull = more power; release to shoot).
  */
-export function BoardArea({ size, bodies, falling, boardTheme, strikerColor, side, enabled, powerAim, onShoot, hint }: Props) {
+export function BoardArea({ size, bodies, falling, boardTheme, strikerColor, side, enabled, powerAim, onShoot, hint, guideLimit }: Props) {
   const [strikerX, setStrikerX] = useState(500);
   const [aim, setAim] = useState<Shot | null>(null);
   const mode = useRef<'move' | 'aim' | null>(null);
@@ -69,11 +70,26 @@ export function BoardArea({ size, bodies, falling, boardTheme, strikerColor, sid
           <Board
             bodies={bodies} falling={falling} size={size} theme={boardThemeOf(boardTheme)}
             striker={enabled || (!bodies.some((b) => b.kind === 'striker') && enabled) ? { x: strikerX, side, color: strikerColor, blocked } : null}
-            aim={enabled ? aim : null} powerAim={powerAim} flip={side === 1}
+            aim={enabled ? aim : null} powerAim={powerAim} flip={side === 1} guideLimit={guideLimit}
           />
+          {enabled && aim && <PowerMeter power={aim.power} size={size} />}
         </View>
       </GestureDetector>
       {enabled && hint ? <Text style={{ color: ui.muted, fontSize: 12, textAlign: 'center', marginTop: 6 }}>{hint}</Text> : null}
+    </View>
+  );
+}
+
+/** Vertical power gauge shown while pulling back: green → yellow → red. */
+function PowerMeter({ power, size }: { power: number; size: number }) {
+  const h = size * 0.5;
+  const color = power < 0.4 ? '#3fb950' : power < 0.75 ? '#f2b705' : '#e5484d';
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', left: 6, top: size * 0.25, alignItems: 'center', gap: 4 }}>
+      <Text style={{ color: '#fff', fontWeight: '900', fontSize: 12, textShadowColor: '#000', textShadowRadius: 3 }}>{Math.round(power * 100)}%</Text>
+      <View style={{ width: 12, height: h, borderRadius: 6, backgroundColor: 'rgba(0,0,0,0.45)', overflow: 'hidden', justifyContent: 'flex-end', borderWidth: 1, borderColor: '#fff6' }}>
+        <View style={{ width: 12, height: h * power, backgroundColor: color }} />
+      </View>
     </View>
   );
 }

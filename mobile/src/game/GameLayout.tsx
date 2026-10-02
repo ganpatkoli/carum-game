@@ -13,6 +13,7 @@ interface Props {
   top: PlayerInfo; bottom: PlayerInfo;
   centerTop: ReactNode; status: string; statusTone?: 'normal' | 'warn';
   bodies: Body[]; falling?: Falling[]; boardTheme?: string; strikerColor?: string;
+  guideLimit?: number;
   side: 0 | 1; canShoot: boolean; onShoot: (s: Shot) => void; hint?: string;
   powerAim: boolean; onPowerAim: () => void;
   buttons: ReactNode;
@@ -29,12 +30,14 @@ export function GameLayout(p: Props) {
         <View style={{ gap: 4, alignItems: 'center' }}>{p.centerTop}</View>
         <View style={{ width: 8 }} />
       </View>
-      <Text style={{ color: p.statusTone === 'warn' ? '#ffd24a' : '#fff', fontWeight: '800', marginVertical: 8 }}>{p.status}</Text>
-      <View>
-        <BoardArea size={BOARD_SIZE} bodies={p.bodies} falling={p.falling} boardTheme={p.boardTheme} strikerColor={p.strikerColor} side={p.side} enabled={p.canShoot} powerAim={p.powerAim} onShoot={p.onShoot} hint={p.hint} />
-        {p.floating}
+      {/* the board sits in the middle of the free space between the two player bars */}
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: p.statusTone === 'warn' ? '#ffd24a' : '#fff', fontWeight: '800', marginBottom: 8 }}>{p.status}</Text>
+        <View>
+          <BoardArea size={BOARD_SIZE} bodies={p.bodies} falling={p.falling} boardTheme={p.boardTheme} strikerColor={p.strikerColor} side={p.side} enabled={p.canShoot} powerAim={p.powerAim} onShoot={p.onShoot} hint={p.hint} guideLimit={p.guideLimit} />
+          {p.floating}
+        </View>
       </View>
-      <View style={{ flex: 1 }} />
       <View style={{ flexDirection: 'row', width: '100%', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 6, gap: 6 }}>
         <PlayerCard p={p.bottom} align="left" />
         <View style={{ flexDirection: 'row', gap: 8 }}>{p.buttons}</View>

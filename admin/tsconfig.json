@@ -20,7 +20,16 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./*"
+      ],
+      "@rbac": [
+        "../backend/src/admin/rbac.ts"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",

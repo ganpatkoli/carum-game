@@ -22,17 +22,19 @@ export interface BoardProps {
   powerAim?: boolean;
   /** draw rotated 180° so the local player on the top side still sees themselves at the bottom */
   flip?: boolean;
+  /** max length of the power-aim guide in board units (ranked matches limit this) */
+  guideLimit?: number;
 }
 
-export function Board({ bodies, falling = [], size, theme = 'classic', striker, aim, powerAim, flip }: BoardProps) {
+export function Board({ bodies, falling = [], size, theme = 'classic', striker, aim, powerAim, flip, guideLimit }: BoardProps) {
   const t = boardThemes[theme];
   const m = size * FRAME;
   const s = size - 2 * m;
   const k = s / DEFAULT_PHYSICS.boardSize;
   const P = (x: number, y: number) => vec(m + x * k, m + y * k);
   const pockets = useMemo(() => pocketCenters(), []);
-  const guide = aim && striker ? castGuide(bodies, striker.x, baselineY(striker.side), aim) : null;
-  const stub = aim && striker ? { x: striker.x + Math.cos(aim.angle) * 140, y: baselineY(striker.side) + Math.sin(aim.angle) * 140 } : null;
+  const guide = aim && striker ? castGuide(bodies, striker.x, baselineY(striker.side), aim, guideLimit) : null;
+  const stub = aim && striker ? { x: striker.x + Math.cos(aim.angle) * (70 + aim.power * 230), y: baselineY(striker.side) + Math.sin(aim.angle) * (70 + aim.power * 230) } : null;
 
   return (
     <Canvas style={{ width: size, height: size }}>

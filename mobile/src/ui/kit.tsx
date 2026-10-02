@@ -21,7 +21,7 @@ export function Button({ title, onPress, kind = 'primary', loading, disabled, st
       onPress={() => { play('click', 0.6); haptic('light'); onPress(); }}
       style={({ pressed }) => [{ backgroundColor: bg, paddingVertical: 14, paddingHorizontal: 20, borderRadius: 14, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, opacity: off ? 0.5 : pressed ? 0.85 : 1, borderWidth: kind === 'ghost' ? 1 : 0, borderColor: theme.border }, style]}
     >
-      {loading ? <ActivityIndicator color={fg} /> : <>{icon ? <Text style={{ fontSize: 18 }}>{icon}</Text> : null}<Text style={{ color: fg, fontWeight: '800', fontSize: 16 }}>{title}</Text></>}
+      {loading ? <ActivityIndicator color={fg} /> : <>{icon ? <Text style={{ fontSize: 18, color: fg }}>{icon}</Text> : null}<Text style={{ color: fg, fontWeight: '800', fontSize: 16 }}>{title}</Text></>}
     </Pressable>
   );
 }

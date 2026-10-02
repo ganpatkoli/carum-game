@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { bindMusicToSettings, initAudio } from '../src/audio/sounds';
 import { attachMatchListeners } from '../src/game/matchStore';
+import { useSkiaReady } from '../src/game/skiaReady';
 import { loadLang } from '../src/i18n';
 import { syncOfflineMatches } from '../src/offline/queue';
 import { registerForPush } from '../src/push';
@@ -22,6 +23,7 @@ export default function Root() {
   const status = useAuth((s) => s.status);
   const segments = useSegments();
   const brand = useConfig((s) => s.config.branding);
+  const skiaReady = useSkiaReady();
 
   useEffect(() => {
     void (async () => { await loadLang(); await initAudio(); await useAuth.getState().bootstrap(); })();
@@ -53,11 +55,11 @@ export default function Root() {
       <SafeAreaProvider>
         <QueryClientProvider client={qc}>
           <StatusBar style="light" />
-          <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: theme.bg } }}>
+          {skiaReady && <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: theme.bg } }}>
             <Stack.Screen name="online" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="game" options={{ animation: 'fade', gestureEnabled: false }} />
             <Stack.Screen name="matchmaking" options={{ animation: 'fade', gestureEnabled: false }} />
-          </Stack>
+          </Stack>}
           <NotificationHost />
           <AdHost />
           <ToastHost />

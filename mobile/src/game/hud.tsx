@@ -15,9 +15,9 @@ export function PlayerCard({ p, align }: { p: PlayerInfo; align: 'left' | 'right
       <View style={{ alignItems: align === 'left' ? 'flex-start' : 'flex-end', flexShrink: 1 }}>
         <Text style={{ color: '#fff', fontWeight: '800' }} numberOfLines={1}>{p.name}</Text>
         {p.subtitle ? <Text style={{ color: '#ffe9c4', fontSize: 11 }} numberOfLines={1}>{p.subtitle}</Text> : null}
-        <View style={{ flexDirection: 'row', gap: 3, marginTop: 3 }}>
+        <View style={{ flexDirection: 'row', gap: 2, marginTop: 3 }}>
           {Array.from({ length: 9 }, (_, i) => (
-            <View key={i} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.color === 'white' ? '#f5f5f0' : '#111', opacity: i < p.pocketed ? 1 : 0.25, borderWidth: 1, borderColor: '#0006' }} />
+            <View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: p.color === 'white' ? '#f5f5f0' : '#111', opacity: i < p.pocketed ? 1 : 0.25, borderWidth: 1, borderColor: '#0006' }} />
           ))}
         </View>
       </View>
@@ -128,7 +128,7 @@ export function ResultOverlay({ r, onAgain, onHome, againLabel }: { r: MatchResu
       {r.note ? <Text style={{ color: theme.muted, marginBottom: 8, textAlign: 'center' }}>{r.note}</Text> : null}
       <View style={{ width: '100%', maxWidth: 340, gap: 10, marginVertical: 12 }}>
         {r.ranked === false && <Text style={{ color: theme.muted, textAlign: 'center' }}>{t('game.unranked')}</Text>}
-        {r.ratingChange !== undefined && r.ranked !== false && <Row style={{ justifyContent: 'space-between' }}><Text style={{ color: theme.muted }}>{t('game.rating')}</Text><Text style={{ color: r.ratingChange >= 0 ? theme.green : theme.red, fontWeight: '800', fontSize: 18 }}>{r.ratingChange >= 0 ? '+' : ''}{r.ratingChange}</Text></Row>}
+        {!!r.ratingChange && r.ranked !== false && <Row style={{ justifyContent: 'space-between' }}><Text style={{ color: theme.muted }}>{t('game.rating')}</Text><Text style={{ color: r.ratingChange >= 0 ? theme.green : theme.red, fontWeight: '800', fontSize: 18 }}>{r.ratingChange >= 0 ? '+' : ''}{r.ratingChange}</Text></Row>}
         {r.xpGain !== undefined && <Row style={{ justifyContent: 'space-between' }}><Text style={{ color: theme.muted }}>{t('game.xp')}</Text><CountUp to={r.xpGain} /></Row>}
         {r.xp && (
           <View>

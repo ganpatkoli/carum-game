@@ -9,7 +9,7 @@ export interface Guide {
 }
 
 /** Straight-line ray cast from the striker. "Power aim" shows this long; normal aim only shows a short stub. */
-export function castGuide(bodies: Body[], x0: number, y0: number, shot: Shot, c = DEFAULT_PHYSICS): Guide {
+export function castGuide(bodies: Body[], x0: number, y0: number, shot: Shot, maxLen = Infinity, c = DEFAULT_PHYSICS): Guide {
   const dx = Math.cos(shot.angle), dy = Math.sin(shot.angle);
   let tBest = Infinity;
   let hitBody: Body | null = null;
@@ -28,6 +28,8 @@ export function castGuide(bodies: Body[], x0: number, y0: number, shot: Shot, c 
   const lo = c.strikerRadius, hi = c.boardSize - c.strikerRadius;
   const tw = Math.min(dx > 0 ? (hi - x0) / dx : dx < 0 ? (lo - x0) / dx : Infinity, dy > 0 ? (hi - y0) / dy : dy < 0 ? (lo - y0) / dy : Infinity);
   if (tw < tBest) { tBest = tw; hitBody = null; }
+  // limited assistance: the guide stops early and no longer reveals where the struck coin will go
+  if (tBest > maxLen) return { end: { x: x0 + dx * maxLen, y: y0 + dy * maxLen }, deflect: null, hit: false };
   const end = { x: x0 + dx * tBest, y: y0 + dy * tBest };
   if (!hitBody) return { end, deflect: null, hit: false };
   const nx = hitBody.x - end.x, ny = hitBody.y - end.y;
