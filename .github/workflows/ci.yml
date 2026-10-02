@@ -1,0 +1,36 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/carrom
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - name: Game engine
+        run: npm run typecheck -w @carrom/game-core && npm test -w @carrom/game-core
+      - name: Backend (migrations must match the schema)
+        working-directory: backend
+        run: |
+          npx prisma generate
+          PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE carrom'
+          npx prisma migrate deploy
+          npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+          npm run typecheck
+          npm test
+      - name: Admin panel
+        working-directory: admin
+        run: npx tsc --noEmit && npx next build
+      - name: Mobile app
+        working-directory: mobile
+        run: npx tsc --noEmit && npx expo export --platform android --output-dir /tmp/android-bundle

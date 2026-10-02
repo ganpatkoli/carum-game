@@ -1,6 +1,18 @@
 {
   "name": "carrom-arena",
   "private": true,
-  "workspaces": ["packages/*", "backend", "mobile", "admin"],
-  "scripts": { "test": "npm test -w @carrom/game-core && npm test -w @carrom/backend" }
+  "workspaces": [
+    "packages/*",
+    "backend",
+    "mobile",
+    "admin"
+  ],
+  "scripts": {
+    "dev:backend": "npm run dev -w @carrom/backend",
+    "dev:admin": "npm run dev -w @carrom/admin",
+    "dev:mobile": "npm run start -w @carrom/mobile",
+    "db:setup": "npm run db:setup -w @carrom/backend",
+    "typecheck": "npm run typecheck -w @carrom/game-core && npm run typecheck -w @carrom/backend && npm run typecheck -w @carrom/mobile && npm run typecheck -w @carrom/admin",
+    "test": "npm test -w @carrom/game-core && npm test -w @carrom/backend"
+  }
 }
