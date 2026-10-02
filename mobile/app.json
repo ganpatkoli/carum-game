@@ -6,8 +6,21 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "plugins": ["expo-router", "expo-secure-store", "expo-notifications"],
-    "ios": { "bundleIdentifier": "com.carromarena.app", "usesAppleSignIn": true },
-    "android": { "package": "com.carromarena.app" }
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#14110f",
+    "splash": { "image": "./assets/splash-icon.png", "resizeMode": "contain", "backgroundColor": "#14110f" },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-audio",
+      ["expo-notifications", { "color": "#f2b705" }],
+      ["expo-image-picker", { "photosPermission": "Allow Carrom Arena to access your photos to set a profile picture or attach a screenshot." }],
+      "expo-apple-authentication",
+      "expo-web-browser"
+    ],
+    "ios": { "bundleIdentifier": "com.carromarena.app", "supportsTablet": false, "usesAppleSignIn": true },
+    "android": { "package": "com.carromarena.app", "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#14110f" } },
+    "web": { "bundler": "metro", "favicon": "./assets/favicon.png" },
+    "extra": { "eas": { "projectId": "" } }
   }
 }

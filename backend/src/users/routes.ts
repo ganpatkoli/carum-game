@@ -60,6 +60,27 @@ export function registerUserRoutes(app: FastifyInstance, db: PrismaClient) {
     return { imageUrl };
   });
 
+  /** Recent finished matches with the opponent(s), result and rating change. */
+  app.get('/me/matches', { preHandler: guard }, async (req: any) => {
+    const { limit } = z.object({ limit: z.coerce.number().int().min(1).max(50).default(10) }).parse(req.query);
+    const rows = await db.matchPlayer.findMany({
+      where: { userId: req.userId, match: { status: 'FINISHED' } }, orderBy: { match: { endedAt: 'desc' } }, take: limit,
+      include: { match: { include: { players: true, result: true } } },
+    });
+    const ids = [...new Set(rows.flatMap((r) => r.match.players.map((p) => p.userId)))];
+    const profiles = await db.profile.findMany({ where: { userId: { in: ids } } });
+    return rows.map((r) => {
+      const opp = r.match.players.filter((p) => p.side !== r.side);
+      const side = r.match.result?.winnerSide;
+      return {
+        matchId: r.matchId, mode: r.match.mode, ranked: r.match.ranked, endedAt: r.match.endedAt,
+        result: side === null || side === undefined ? 'draw' : side === r.side ? 'win' : 'loss',
+        score: r.score, opponentScore: opp[0]?.score ?? 0, ratingChange: r.ratingAfter != null && r.ratingBefore != null ? r.ratingAfter - r.ratingBefore : 0,
+        opponents: opp.map((o) => { const p = profiles.find((x) => x.userId === o.userId); return { id: o.userId, username: p?.username ?? 'Bot', avatarId: p?.avatarId ?? 'avatar_05' }; }),
+      };
+    });
+  });
+
   app.post('/me/devices', { preHandler: guard }, async (req: any) => {
     const b = z.object({ deviceKey: z.string().max(120), platform: z.enum(['android', 'ios', 'web']), pushToken: z.string().max(300).optional() }).parse(req.body);
     await db.device.upsert({

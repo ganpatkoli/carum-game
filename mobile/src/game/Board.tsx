@@ -1,37 +1,42 @@
 import { Canvas, Circle, Group, Line, LinearGradient, RadialGradient, RoundedRect, vec } from '@shopify/react-native-skia';
 import { useMemo } from 'react';
-import { DEFAULT_PHYSICS, pocketCenters, type Shot, type World } from '@carrom/game-core';
-import { boardThemes } from '../ui/theme';
+import { DEFAULT_PHYSICS, pocketCenters, type Body, type Shot } from '@carrom/game-core';
+import { boardThemes, type BoardThemeId } from '../ui/theme';
 import { castGuide } from './aimGuide';
+import { fallProgress, type Falling } from './playback';
 
-const COIN = { black: ['#555', '#0b0b0b'], white: ['#ffffff', '#cfc6b4'], queen: ['#ff6b6b', '#a3121f'], striker: ['#ffe27a', '#d98a00'] } as const;
+const COIN = { black: ['#6a6a6a', '#0b0b0b'], white: ['#ffffff', '#cfc6b4'], queen: ['#ff6b6b', '#a3121f'] } as const;
 
 /** Frame margin as a fraction of the canvas — shared with the gesture code. */
 export const FRAME = 0.05;
+export const baselineY = (side: 0 | 1) => (side === 0 ? 850 : 150);
 
 export interface BoardProps {
-  world: World;
+  bodies: Body[];
+  falling?: Falling[];
   size: number;
-  theme?: keyof typeof boardThemes;
-  /** striker resting spot (shown whenever it's a player's turn) */
-  striker?: { x: number; side: 0 | 1 } | null;
+  theme?: BoardThemeId;
+  /** resting striker (shown while it is somebody's turn and nothing is moving) */
+  striker?: { x: number; side: 0 | 1; color?: string; blocked?: boolean } | null;
   aim?: Shot | null;
   powerAim?: boolean;
+  /** draw rotated 180° so the local player on the top side still sees themselves at the bottom */
+  flip?: boolean;
 }
 
-export function Board({ world, size, theme = 'classic', striker, aim, powerAim }: BoardProps) {
+export function Board({ bodies, falling = [], size, theme = 'classic', striker, aim, powerAim, flip }: BoardProps) {
   const t = boardThemes[theme];
   const m = size * FRAME;
   const s = size - 2 * m;
   const k = s / DEFAULT_PHYSICS.boardSize;
   const P = (x: number, y: number) => vec(m + x * k, m + y * k);
   const pockets = useMemo(() => pocketCenters(), []);
-  const baselineY = (side: 0 | 1) => (side === 0 ? 850 : 150);
-  const guide = aim && striker ? castGuide(world.bodies, striker.x, baselineY(striker.side), aim) : null;
+  const guide = aim && striker ? castGuide(bodies, striker.x, baselineY(striker.side), aim) : null;
   const stub = aim && striker ? { x: striker.x + Math.cos(aim.angle) * 140, y: baselineY(striker.side) + Math.sin(aim.angle) * 140 } : null;
 
   return (
     <Canvas style={{ width: size, height: size }}>
+      <Group transform={flip ? [{ translateX: size }, { translateY: size }, { rotate: Math.PI }] : []}>
       {/* wooden frame */}
       <RoundedRect x={0} y={0} width={size} height={size} r={size * 0.03}>
         <LinearGradient start={vec(0, 0)} end={vec(size, size)} colors={[t.frame, '#3b2210', t.frame]} />
@@ -72,13 +77,14 @@ export function Board({ world, size, theme = 'classic', striker, aim, powerAim }
         </Group>
       ))}
 
-      {/* pockets */}
+      {/* pockets with nets */}
       {pockets.map((p, i) => (
         <Group key={i}>
           <Circle c={P(p.x, p.y)} r={(DEFAULT_PHYSICS.pocketRadius + 7) * k} color="#6d3fa8" />
           <Circle c={P(p.x, p.y)} r={DEFAULT_PHYSICS.pocketRadius * k}>
-            <RadialGradient c={P(p.x, p.y)} r={DEFAULT_PHYSICS.pocketRadius * k} colors={['#000', '#1a1a1a']} />
+            <RadialGradient c={P(p.x, p.y)} r={DEFAULT_PHYSICS.pocketRadius * k} colors={['#000', '#1c1c1c']} />
           </Circle>
+          <Circle c={P(p.x, p.y)} r={DEFAULT_PHYSICS.pocketRadius * k * 0.7} color="rgba(255,255,255,0.12)" style="stroke" strokeWidth={1} />
         </Group>
       ))}
 
@@ -96,22 +102,27 @@ export function Board({ world, size, theme = 'classic', striker, aim, powerAim }
         </Group>
       )}
 
-      {/* coins */}
-      {world.bodies.map((b) => <Piece key={b.id} x={m + b.x * k} y={m + b.y * k} r={b.radius * k} kind={b.kind} />)}
-      {striker && <Piece x={m + striker.x * k} y={m + baselineY(striker.side) * k} r={DEFAULT_PHYSICS.strikerRadius * k} kind="striker" />}
+      {bodies.map((b) => <Piece key={b.id} x={m + b.x * k} y={m + b.y * k} r={b.radius * k} kind={b.kind} />)}
+      {falling.map((f) => {
+        const p = fallProgress(f);
+        return <Piece key={'f' + f.id} x={m + f.x * k} y={m + f.y * k} r={f.r * k * (1 - p * 0.85)} kind={f.kind} fade={1 - p} />;
+      })}
+      {striker && <Piece x={m + striker.x * k} y={m + baselineY(striker.side) * k} r={DEFAULT_PHYSICS.strikerRadius * k} kind="striker" color={striker.blocked ? '#e5484d' : striker.color} />}
+      </Group>
     </Canvas>
   );
 }
 
-function Piece({ x, y, r, kind }: { x: number; y: number; r: number; kind: keyof typeof COIN }) {
-  const [hi, lo] = COIN[kind];
+function Piece({ x, y, r, kind, color, fade = 1 }: { x: number; y: number; r: number; kind: Body['kind']; color?: string; fade?: number }) {
+  const [hi, lo] = kind === 'striker' ? ['#ffffff', color ?? '#d98a00'] : COIN[kind];
   return (
-    <Group>
+    <Group opacity={fade}>
       <Circle cx={x + 1.5} cy={y + 2.5} r={r} color="rgba(0,0,0,0.35)" />
       <Circle cx={x} cy={y} r={r}>
         <RadialGradient c={vec(x - r * 0.35, y - r * 0.4)} r={r * 1.5} colors={[hi, lo]} />
       </Circle>
       <Circle cx={x} cy={y} r={r * 0.62} color="rgba(0,0,0,0.28)" style="stroke" strokeWidth={1} />
+      {kind === 'striker' && <Circle cx={x} cy={y} r={r * 0.3} color="rgba(0,0,0,0.25)" />}
     </Group>
   );
 }

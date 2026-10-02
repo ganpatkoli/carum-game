@@ -1,35 +1,51 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { applyShot, chooseShot, newGame, simulateShot, DEFAULT_PHYSICS, type Difficulty, type GameEvent, type GameState, type Shot, type World } from '@carrom/game-core';
+import { DEFAULT_PHYSICS, DEFAULT_RULES, applyShot, chooseShot, newGame, type Difficulty, type GameEvent, type GameState, type Shot } from '@carrom/game-core';
+import { play } from '../audio/sounds';
+import { useConfig } from '../store/config';
+import { useShotPlayback } from './playback';
 
-/** Offline vs-AI game. Uses the exact same engine as the server, but never touches rewards, rating or wallet. */
+/**
+ * Offline practice vs the AI. Same engine and rules as the server, but results never touch rewards,
+ * rating or coins. The human is side 0 (bottom), the AI side 1.
+ */
 export function useOfflineGame(difficulty: Difficulty) {
+  const cfg = useConfig((s) => s.config.rules);
+  const rules = { ...DEFAULT_RULES, ...cfg };
   const [state, setState] = useState<GameState>(() => newGame(0));
   const [events, setEvents] = useState<GameEvent[]>([]);
-  const [busy, setBusy] = useState(false);
-  const seed = useRef(1);
+  const [thinking, setThinking] = useState(false);
+  const pb = useShotPlayback();
+  const seed = useRef(Math.floor(Math.random() * 1e6));
+  const startedAt = useRef(Date.now());
+  const busy = useRef(false);
 
-  const play = useCallback((shot: Shot) => {
-    setState((s) => {
-      const r = applyShot(s, shot);
-      setEvents(r.events);
-      return r.state;
+  const play_ = useCallback((shot: Shot) => {
+    if (busy.current) return;
+    busy.current = true;
+    const side = state.current;
+    const r = applyShot(state, shot, rules, DEFAULT_PHYSICS, { record: true });
+    pb.playShot(state.world, side, shot.strikerX, r.sim!, () => {
+      setState(r.state); setEvents(r.events);
+      for (const e of r.events) { if (e.type === 'foul') play('foul'); if (e.type === 'queen_covered') play('queen'); }
+      busy.current = false;
     });
-  }, []);
-
-  /** Aim preview: simulate with the real physics but only the striker's first leg is shown to the player. */
-  const preview = useCallback((shot: Shot): World => simulateShot(state.world, 0, shot, DEFAULT_PHYSICS).world, [state.world]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, pb.playShot]);
 
   useEffect(() => {
-    if (state.current !== 1 || state.winner !== null) return;
-    setBusy(true);
+    if (state.current !== 1 || state.winner !== null || pb.playing || busy.current) return;
+    setThinking(true);
+    // let the "thinking" label render first: the search blocks the JS thread for a moment on hard levels
     const id = setTimeout(() => {
-      // heavy search: keep it off the touch path
-      play(chooseShot(state, difficulty, seed.current++));
-      setBusy(false);
-    }, 600);
+      const shot = chooseShot(state, difficulty, seed.current++, rules);
+      setThinking(false);
+      play_(shot);
+    }, 650);
     return () => clearTimeout(id);
-  }, [state, difficulty, play]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, pb.playing]);
 
-  const reset = () => { setState(newGame(0)); setEvents([]); };
-  return { state, events, busy, play, preview, reset };
+  const reset = () => { pb.stop(); busy.current = false; setState(newGame(0)); setEvents([]); startedAt.current = Date.now(); };
+  const outcome: 'win' | 'loss' | 'draw' | null = state.winner === null ? null : state.winner === 'draw' ? 'draw' : state.winner === 0 ? 'win' : 'loss';
+  return { state, events, thinking, playback: pb, play: play_, reset, outcome, startedAt: startedAt.current, animating: pb.playing || busy.current };
 }

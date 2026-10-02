@@ -312,6 +312,25 @@ describe('offline sync', () => {
   });
 });
 
+describe('recent matches', () => {
+  it('lists finished matches with opponent, result and rating change; newest first', async () => {
+    const a = await t.registerUser('Rm1'); const b = await t.registerUser('Rm2');
+    const mk = async (winnerSide: number | null, endedAt: Date) => {
+      const m = await t.db.match.create({ data: { mode: 'quick', status: 'FINISHED', seed: 1, ranked: true, endedAt } });
+      await t.db.matchPlayer.createMany({ data: [{ matchId: m.id, userId: a.userId, side: 0, score: 5, ratingBefore: 1200, ratingAfter: 1215 }, { matchId: m.id, userId: b.userId, side: 1, score: 2, ratingBefore: 1200, ratingAfter: 1185 }] });
+      await t.db.gameResult.create({ data: { matchId: m.id, winnerId: winnerSide === 0 ? a.userId : null, winnerSide, reason: 'completed', scores: [5, 2] } });
+    };
+    await mk(0, new Date(Date.now() - 60_000)); await mk(null, new Date());
+    const r = (await t.http('GET', '/me/matches?limit=5', undefined, a.accessToken)).body;
+    expect(r).toHaveLength(2);
+    expect(r[0].result).toBe('draw'); expect(r[1].result).toBe('win');
+    expect(r[1]).toMatchObject({ ratingChange: 15, score: 5, opponentScore: 2 });
+    expect(r[1].opponents[0].username).toBe(b.username);
+    expect((await t.http('GET', '/me/matches', undefined, b.accessToken)).body[1].result).toBe('loss');
+    expect((await t.http('GET', '/me/matches?limit=0', undefined, a.accessToken)).status).toBe(400);
+  });
+});
+
 describe('settings fall back safely', () => {
   it('invalid stored values fall back to defaults and writes are validated', async () => {
     await t.db.appSetting.upsert({ where: { key: 'rules' }, update: { value: { queenPoints: 'lots' } }, create: { key: 'rules', value: { queenPoints: 'lots' } } });

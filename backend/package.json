@@ -11,8 +11,9 @@
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "seed": "tsx prisma/seed.ts",
-    "db:constraints": "psql \"$DATABASE_URL\" -f prisma/constraints.sql",
-    "build": "tsc --noEmit"
+    "db:constraints": "tsx prisma/apply-constraints.ts",
+    "build": "tsc --noEmit",
+    "db:setup": "prisma db push --skip-generate && tsx prisma/apply-constraints.ts && tsx prisma/seed.ts"
   },
   "dependencies": {
     "@carrom/game-core": "*",

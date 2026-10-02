@@ -1,4 +1,5 @@
 import { Tabs } from 'expo-router';
+import { Text } from 'react-native';
 import { useT, type Key } from '../../src/i18n';
 import { theme } from '../../src/ui/theme';
 
@@ -13,8 +14,8 @@ const tabs: { name: string; key: Key; icon: string }[] = [
 export default function TabsLayout() {
   const t = useT();
   return (
-    <Tabs screenOptions={{ headerShown: false, tabBarStyle: { backgroundColor: theme.card, borderTopColor: '#000' }, tabBarActiveTintColor: theme.gold }}>
-      {tabs.map((x) => <Tabs.Screen key={x.name} name={x.name} options={{ title: t(x.key), tabBarIcon: () => <>{x.icon}</> as any }} />)}
+    <Tabs screenOptions={{ headerShown: false, tabBarStyle: { backgroundColor: theme.card, borderTopColor: theme.border }, tabBarActiveTintColor: theme.gold, tabBarInactiveTintColor: theme.muted }}>
+      {tabs.map((x) => <Tabs.Screen key={x.name} name={x.name} options={{ title: t(x.key), tabBarIcon: ({ focused }) => <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.6 }}>{x.icon}</Text> }} />)}
     </Tabs>
   );
 }
