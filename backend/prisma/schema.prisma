@@ -1,6 +1,7 @@
 generator client {
   provider = "prisma-client-js"
 }
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -18,24 +19,28 @@ enum TxType {
   AD_REWARD
   PURCHASE
 }
+
 enum MatchStatus {
   WAITING
   IN_PROGRESS
   FINISHED
   ABANDONED
 }
+
 enum RoomStatus {
   OPEN
   FULL
   STARTED
   CLOSED
 }
+
 enum ReportStatus {
   OPEN
   UNDER_REVIEW
   RESOLVED
   REJECTED
 }
+
 enum ReportType {
   CHEATING
   ABUSE
@@ -44,17 +49,20 @@ enum ReportType {
   INAPPROPRIATE_USERNAME
   OTHER
 }
+
 enum TicketStatus {
   OPEN
   IN_PROGRESS
   RESOLVED
   CLOSED
 }
+
 enum FriendRequestStatus {
   PENDING
   ACCEPTED
   REJECTED
 }
+
 enum ItemCategory {
   STRIKER
   BOARD
@@ -63,12 +71,14 @@ enum ItemCategory {
   EFFECT
   EMOTE
 }
+
 enum Rarity {
   COMMON
   RARE
   EPIC
   LEGENDARY
 }
+
 enum AdminRole {
   SUPER_ADMIN
   ADMIN
@@ -78,20 +88,23 @@ enum AdminRole {
 }
 
 model User {
-  id           String   @id @default(uuid()) @db.Uuid
-  playerId     String   @unique @default(dbgenerated("upper(substr(md5(random()::text),1,8))"))
-  email        String?  @unique
-  phone        String?  @unique
+  id           String    @id @default(uuid()) @db.Uuid
+  playerId     String    @unique @default(dbgenerated("upper(substr(md5(random()::text),1,8))"))
+  email        String?   @unique
+  phone        String?   @unique
   passwordHash String?
-  googleId     String?  @unique
-  appleId      String?  @unique
-  isBanned     Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  googleId     String?   @unique
+  appleId      String?   @unique
+  isBanned     Boolean   @default(false)
+  isBot        Boolean   @default(false)
+  lastSeenAt   DateTime?
+  createdAt    DateTime  @default(now())
   profile      Profile?
   wallet       Wallet?
   rating       Rating?
   sessions     Session[]
   devices      Device[]
+
   @@index([createdAt])
 }
 
@@ -103,6 +116,7 @@ model Profile {
   avatarId      String  @default("avatar_01")
   imageUrl      String?
   country       String?
+  profileComplete Boolean @default(true)
   language      String  @default("en")
   level         Int     @default(1)
   xp            Int     @default(0)
@@ -118,15 +132,18 @@ model Profile {
 }
 
 model Session {
-  id               String   @id @default(uuid()) @db.Uuid
-  userId           String   @db.Uuid
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshTokenHash String   @unique
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String    @unique
   deviceId         String?
   ip               String?
   expiresAt        DateTime
   revokedAt        DateTime?
-  createdAt        DateTime @default(now())
+  /// true when revoked because it was exchanged for a new token (reusing such a token signals theft)
+  rotated          Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+
   @@index([userId])
 }
 
@@ -138,6 +155,7 @@ model Device {
   platform  String
   pushToken String?
   lastSeen  DateTime @default(now())
+
   @@unique([userId, deviceKey])
 }
 
@@ -147,6 +165,7 @@ model FriendRequest {
   toId      String              @db.Uuid
   status    FriendRequestStatus @default(PENDING)
   createdAt DateTime            @default(now())
+
   @@unique([fromId, toId])
   @@index([toId, status])
 }
@@ -154,79 +173,87 @@ model FriendRequest {
 model Friend {
   userId   String @db.Uuid
   friendId String @db.Uuid
+
   @@id([userId, friendId])
 }
 
 model BlockedUser {
   userId    String @db.Uuid
   blockedId String @db.Uuid
+
   @@id([userId, blockedId])
 }
 
 model Room {
-  id         String     @id @default(uuid()) @db.Uuid
-  code       String     @unique
-  hostId     String     @db.Uuid
-  maxPlayers Int        @default(2)
-  entryCoins Int        @default(0)
-  boardTheme String     @default("classic")
-  rules      Json       @default("{}")
+  id          String       @id @default(uuid()) @db.Uuid
+  code        String       @unique
+  hostId      String       @db.Uuid
+  maxPlayers  Int          @default(2)
+  entryCoins  Int          @default(0)
+  boardTheme  String       @default("classic")
+  rules       Json         @default("{}")
   durationSec Int?
-  status     RoomStatus @default(OPEN)
-  createdAt  DateTime   @default(now())
-  players    RoomPlayer[]
+  status      RoomStatus   @default(OPEN)
+  createdAt   DateTime     @default(now())
+  players     RoomPlayer[]
 }
 
 model RoomPlayer {
-  roomId   String @db.Uuid
-  room     Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  userId   String @db.Uuid
-  ready    Boolean @default(false)
+  roomId String  @db.Uuid
+  room   Room    @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId String  @db.Uuid
+  ready  Boolean @default(false)
+
   @@id([roomId, userId])
 }
 
 model Match {
-  id         String      @id @default(uuid()) @db.Uuid
-  roomId     String?     @db.Uuid
+  id         String        @id @default(uuid()) @db.Uuid
+  roomId     String?       @db.Uuid
   mode       String
-  status     MatchStatus @default(WAITING)
-  entryCoins Int         @default(0)
+  status     MatchStatus   @default(WAITING)
+  entryCoins Int           @default(0)
   seed       Int
-  rules      Json        @default("{}")
-  suspicious Boolean     @default(false)
+  rules      Json          @default("{}")
+  suspicious Boolean       @default(false)
+  ranked     Boolean       @default(false)
+  reviewed   Boolean       @default(false)
   startedAt  DateTime?
   endedAt    DateTime?
-  createdAt  DateTime    @default(now())
+  createdAt  DateTime      @default(now())
   players    MatchPlayer[]
   events     GameEvent[]
   result     GameResult?
+
   @@index([status])
   @@index([suspicious])
 }
 
 model MatchPlayer {
-  matchId  String @db.Uuid
-  match    Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  userId   String @db.Uuid
-  side     Int
-  score    Int    @default(0)
-  fouls    Int    @default(0)
+  matchId      String @db.Uuid
+  match        Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId       String @db.Uuid
+  side         Int
+  score        Int    @default(0)
+  fouls        Int    @default(0)
   ratingBefore Int?
   ratingAfter  Int?
+
   @@id([matchId, userId])
   @@index([userId])
 }
 
 model GameEvent {
-  id       BigInt   @id @default(autoincrement())
-  matchId  String   @db.Uuid
-  match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  userId   String?  @db.Uuid
-  type     String
-  payload  Json
-  ip       String?
+  id        BigInt   @id @default(autoincrement())
+  matchId   String   @db.Uuid
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  userId    String?  @db.Uuid
+  type      String
+  payload   Json
+  ip        String?
   deviceKey String?
   createdAt DateTime @default(now())
+
   @@index([matchId, id])
 }
 
@@ -234,43 +261,47 @@ model GameResult {
   matchId  String  @id @db.Uuid
   match    Match   @relation(fields: [matchId], references: [id], onDelete: Cascade)
   winnerId String? @db.Uuid
+  /// winning team (0/1); null = draw
+  winnerSide Int?
   reason   String
   scores   Json
 }
 
 model Rating {
-  userId    String @id @db.Uuid
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rating    Int    @default(1200)
-  previous  Int    @default(1200)
-  lastChange Int   @default(0)
-  highest   Int    @default(1200)
-  lowest    Int    @default(1200)
-  region    String @default("global")
-  updatedAt DateTime @updatedAt
+  userId     String   @id @db.Uuid
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating     Int      @default(1200)
+  previous   Int      @default(1200)
+  lastChange Int      @default(0)
+  highest    Int      @default(1200)
+  lowest     Int      @default(1200)
+  region     String   @default("global")
+  updatedAt  DateTime @updatedAt
+
   @@index([rating])
 }
 
 model LeaderboardSnapshot {
-  id       String @id @default(uuid()) @db.Uuid
-  period   String
+  id        String @id @default(uuid()) @db.Uuid
+  period    String
   periodKey String
-  userId   String @db.Uuid
-  rating   Int
-  wins     Int
-  xp       Int
-  rank     Int
+  userId    String @db.Uuid
+  rating    Int
+  wins      Int
+  xp        Int
+  rank      Int
+
   @@unique([period, periodKey, userId])
   @@index([period, periodKey, rank])
 }
 
 model Wallet {
-  userId       String @id @db.Uuid
-  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  balance      BigInt @default(0)
-  totalEarned  BigInt @default(0)
-  totalSpent   BigInt @default(0)
-  updatedAt    DateTime @updatedAt
+  userId       String              @id @db.Uuid
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  balance      BigInt              @default(0)
+  totalEarned  BigInt              @default(0)
+  totalSpent   BigInt              @default(0)
+  updatedAt    DateTime            @updatedAt
   transactions WalletTransaction[]
 }
 
@@ -287,11 +318,12 @@ model WalletTransaction {
   refId          String?
   note           String?
   createdAt      DateTime @default(now())
+
   @@index([userId, createdAt])
 }
 
 model Mission {
-  id          String @id
+  id          String  @id
   title       String
   metric      String
   target      Int
@@ -305,15 +337,16 @@ model UserMission {
   day       String
   progress  Int     @default(0)
   claimed   Boolean @default(false)
+
   @@id([userId, missionId, day])
 }
 
 model Achievement {
-  id          String @id
+  id          String  @id
   title       String
   metric      String
   target      Int
-  rewardCoins Int @default(0)
+  rewardCoins Int     @default(0)
   active      Boolean @default(true)
 }
 
@@ -321,18 +354,20 @@ model UserAchievement {
   userId        String   @db.Uuid
   achievementId String
   unlockedAt    DateTime @default(now())
+
   @@id([userId, achievementId])
 }
 
 model InventoryItem {
-  id        String       @id
-  category  ItemCategory
-  name      String
-  imageUrl  String?
-  price     Int          @default(0)
-  rarity    Rarity       @default(COMMON)
-  active    Boolean      @default(true)
-  meta      Json         @default("{}")
+  id       String       @id
+  category ItemCategory
+  name     String
+  imageUrl String?
+  price    Int          @default(0)
+  rarity   Rarity       @default(COMMON)
+  active   Boolean      @default(true)
+  meta     Json         @default("{}")
+
   @@index([category])
 }
 
@@ -341,18 +376,20 @@ model UserInventory {
   itemId     String
   equipped   Boolean  @default(false)
   acquiredAt DateTime @default(now())
+
   @@id([userId, itemId])
 }
 
 model Notification {
-  id        String   @id @default(uuid()) @db.Uuid
-  userId    String   @db.Uuid
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
   kind      String
   title     String
   body      String
-  data      Json     @default("{}")
+  data      Json      @default("{}")
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
+
   @@index([userId, createdAt])
 }
 
@@ -366,19 +403,21 @@ model Report {
   status     ReportStatus @default(OPEN)
   resolution String?
   createdAt  DateTime     @default(now())
+
   @@index([status])
 }
 
 model SupportTicket {
-  id         String       @id @default(uuid()) @db.Uuid
-  userId     String       @db.Uuid
-  category   String
-  description String
+  id            String           @id @default(uuid()) @db.Uuid
+  userId        String           @db.Uuid
+  category      String
+  description   String
   screenshotUrl String?
-  status     TicketStatus @default(OPEN)
-  assignedTo String?      @db.Uuid
-  createdAt  DateTime     @default(now())
-  messages   SupportMessage[]
+  status        TicketStatus     @default(OPEN)
+  assignedTo    String?          @db.Uuid
+  createdAt     DateTime         @default(now())
+  messages      SupportMessage[]
+
   @@index([status])
 }
 
@@ -401,18 +440,19 @@ model AppSetting {
 }
 
 model AdSetting {
-  id           String  @id
-  format       String
-  enabled      Boolean @default(true)
-  frequency    Int     @default(3)
-  cooldownSec  Int     @default(300)
-  rewardCoins  Int     @default(0)
+  id          String  @id
+  format      String
+  enabled     Boolean @default(true)
+  frequency   Int     @default(3)
+  cooldownSec Int     @default(300)
+  rewardCoins Int     @default(0)
 }
 
 model Role {
-  id          AdminRole  @id
+  id          AdminRole    @id
   permissions Permission[]
 }
+
 model Permission {
   id     String    @id
   roleId AdminRole
@@ -434,5 +474,44 @@ model AuditLog {
   target    String?
   meta      Json     @default("{}")
   createdAt DateTime @default(now())
+
   @@index([createdAt])
+}
+
+model Purchase {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @db.Uuid
+  productId     String
+  provider      String
+  providerTxnId String   @unique
+  coins         Int      @default(0)
+  itemId        String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Offline AI-match summaries uploaded by the client; validated before they touch stats.
+model OfflineSync {
+  clientId  String   @id
+  userId    String   @db.Uuid
+  payload   Json
+  accepted  Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model OtpCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  target    String
+  purpose   String
+  codeHash  String
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([target, purpose])
 }

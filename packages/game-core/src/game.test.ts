@@ -107,3 +107,16 @@ describe('ai', () => {
     expect(turns).toBeGreaterThan(1);
   }, 120000);
 });
+
+describe('recording', () => {
+  it('records frames, hits and pocket events without changing the result', () => {
+    const shot = { strikerX: 500, angle: -Math.PI / 2, power: 1 };
+    const plain = simulateShot(initialWorld(), 0, shot);
+    const rec = simulateShot(initialWorld(), 0, shot, DEFAULT_PHYSICS, { record: true });
+    expect(hash(rec.world)).toBe(hash(plain.world));
+    expect(rec.frames!.length).toBeGreaterThan(5);
+    expect(rec.hits!.some((h) => h.kind === 'coin')).toBe(true);
+    const g = applyShot(newGame(0), shot, DEFAULT_RULES, DEFAULT_PHYSICS, { record: true });
+    expect(g.sim!.frames.length).toBeGreaterThan(5);
+  });
+});

@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { applyWalletTx } from './wallet.service';
-import { HttpError } from '../auth/auth.service';
+import { HttpError } from '../common/http';
+import { getSetting } from '../common/settings';
 
 export const DEFAULT_DAILY_REWARDS = [100, 150, 200, 250, 300, 400, 1000];
 
@@ -8,8 +9,18 @@ const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 const dayDiff = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / 86_400_000);
 
 export async function getDailyRewards(db: PrismaClient): Promise<number[]> {
-  const s = await db.appSetting.findUnique({ where: { key: 'daily_rewards' } });
-  return Array.isArray(s?.value) && (s!.value as number[]).length === 7 ? (s!.value as number[]) : DEFAULT_DAILY_REWARDS;
+  return [...(await getSetting(db, 'daily_rewards'))];
+}
+
+export async function dailyStatus(db: PrismaClient, userId: string, now = new Date()) {
+  const last = await db.walletTransaction.findFirst({ where: { userId, type: 'DAILY_REWARD' }, orderBy: { createdAt: 'desc' } });
+  const lastDay = last ? dayKey(last.createdAt) : null;
+  const lastStreak = last?.refId ? Number(last.refId) : 0;
+  const next = nextStreakDay(lastDay, lastStreak, dayKey(now));
+  const rewards = await getDailyRewards(db);
+  // streak shown to the player: what they have if they claim today's, or keep tomorrow
+  const current = next === null ? lastStreak : next === 1 ? 0 : next - 1;
+  return { rewards, canClaim: next !== null, nextDay: next ?? (lastStreak % 7) + 1, streak: current, claimedToday: next === null };
 }
 
 /** Streak day (1..7) from the last claim; resets after a missed day. */

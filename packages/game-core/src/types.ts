@@ -50,7 +50,15 @@ export interface World {
   step: number;
 }
 
+/** One sampled animation frame: flat [id, x, y, id, x, y, ...] for every live body. */
+export interface Frame { step: number; b: number[] }
+export interface HitEvent { step: number; kind: 'coin' | 'wall'; v: number }
+export interface PocketEvent { step: number; id: number; kind: CoinKind }
+
 export interface ShotOutcome {
+  frames?: Frame[];
+  hits?: HitEvent[];
+  pockets?: PocketEvent[];
   world: World;
   pocketed: Body[];
   strikerPocketed: boolean;

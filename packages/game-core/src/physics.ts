@@ -1,5 +1,12 @@
 import { BASELINE_HALF_LENGTH, BASELINE_OFFSET, DEFAULT_PHYSICS } from './config';
-import type { Body, PhysicsConfig, Shot, ShotOutcome, World } from './types';
+import type { Body, Frame, HitEvent, PhysicsConfig, PocketEvent, Shot, ShotOutcome, World } from './types';
+
+export interface SimOptions {
+  /** record sampled frames / hit / pocket events for animation (costs memory, off by default) */
+  record?: boolean;
+  /** record one frame every N physics steps (4 = 30fps at dt 1/120) */
+  frameEvery?: number;
+}
 
 /**
  * Fixed-step, allocation-light 2D circle physics. Pure arithmetic on numbers with
@@ -66,6 +73,7 @@ export function simulateShot(
   side: 0 | 1,
   shot: Shot,
   c: PhysicsConfig = DEFAULT_PHYSICS,
+  opts: SimOptions = {},
 ): ShotOutcome {
   const world = cloneWorld(start);
   world.bodies = world.bodies.filter((b) => b.kind !== 'striker');
@@ -79,6 +87,17 @@ export function simulateShot(
   const pocketed: Body[] = [];
   let firstContact: ShotOutcome['firstContact'] = null;
   let steps = 0;
+  const frames: Frame[] = [];
+  const hits: HitEvent[] = [];
+  const pocketEvents: PocketEvent[] = [];
+  const every = opts.frameEvery ?? 4;
+  const r1 = (n: number) => Math.round(n * 10) / 10;
+  const snap = () => {
+    const b: number[] = [];
+    for (const o of world.bodies) if (!o.pocketed) b.push(o.id, r1(o.x), r1(o.y));
+    frames.push({ step: steps, b });
+  };
+  if (opts.record) snap();
 
   while (steps < c.maxSteps) {
     steps++;
@@ -111,10 +130,12 @@ export function simulateShot(
     const lo = c.wallInset, hi = c.boardSize - c.wallInset;
     for (const b of live) {
       if (b.pocketed) continue;
+      const pvx = b.vx, pvy = b.vy;
       if (b.x - b.radius < lo) { b.x = lo + b.radius; b.vx = Math.abs(b.vx) * c.wallRestitution; }
       else if (b.x + b.radius > hi) { b.x = hi - b.radius; b.vx = -Math.abs(b.vx) * c.wallRestitution; }
       if (b.y - b.radius < lo) { b.y = lo + b.radius; b.vy = Math.abs(b.vy) * c.wallRestitution; }
       else if (b.y + b.radius > hi) { b.y = hi - b.radius; b.vy = -Math.abs(b.vy) * c.wallRestitution; }
+      if (opts.record && (pvx !== b.vx || pvy !== b.vy)) hits.push({ step: steps, kind: 'wall', v: Math.hypot(pvx, pvy) });
     }
 
     // pockets (checked before collisions so a rim-grazing coin still drops)
@@ -126,6 +147,7 @@ export function simulateShot(
         if (dx * dx + dy * dy < r * r) {
           b.pocketed = true; b.vx = 0; b.vy = 0;
           pocketed.push(b);
+          if (opts.record) pocketEvents.push({ step: steps, id: b.id, kind: b.kind });
           break;
         }
       }
@@ -157,6 +179,7 @@ export function simulateShot(
           a.vx -= jImp * invA * nx; a.vy -= jImp * invA * ny;
           b.vx += jImp * invB * nx; b.vy += jImp * invB * ny;
         }
+        if (opts.record && rvn < -20) hits.push({ step: steps, kind: 'coin', v: -rvn });
         if (firstContact === null) {
           if (a.kind === 'striker' && b.kind !== 'striker') firstContact = b.kind;
           else if (b.kind === 'striker' && a.kind !== 'striker') firstContact = a.kind;
@@ -164,13 +187,18 @@ export function simulateShot(
       }
     }
 
+    if (opts.record && steps % every === 0) snap();
     if (!moving) break;
   }
+  if (opts.record) snap();
 
   // anything still creeping is stopped
   for (const b of world.bodies) { b.vx = 0; b.vy = 0; }
 
   const strikerPocketed = pocketed.some((b) => b.kind === 'striker');
   world.bodies = world.bodies.filter((b) => !b.pocketed && b.kind !== 'striker');
-  return { world, pocketed: pocketed.filter((b) => b.kind !== 'striker'), strikerPocketed, steps, firstContact };
+  return {
+    world, pocketed: pocketed.filter((b) => b.kind !== 'striker'), strikerPocketed, steps, firstContact,
+    ...(opts.record ? { frames, hits, pockets: pocketEvents } : {}),
+  };
 }

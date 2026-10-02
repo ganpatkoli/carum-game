@@ -9,15 +9,21 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "db:generate": "prisma generate",
-    "db:push": "prisma db push"
+    "db:push": "prisma db push",
+    "seed": "tsx prisma/seed.ts",
+    "db:constraints": "psql \"$DATABASE_URL\" -f prisma/constraints.sql",
+    "build": "tsc --noEmit"
   },
   "dependencies": {
     "@carrom/game-core": "*",
     "@fastify/cors": "^10.0.0",
+    "@fastify/rate-limit": "^10.0.0",
+    "@fastify/static": "^8.0.0",
     "@prisma/client": "^5.22.0",
     "bcryptjs": "^2.4.3",
     "fastify": "^5.0.0",
     "ioredis": "^5.4.0",
+    "jose": "^5.9.0",
     "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.8.0",
     "zod": "^3.23.0"

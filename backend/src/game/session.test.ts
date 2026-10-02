@@ -3,7 +3,7 @@ import { GameSession } from './session';
 import { ratingDelta, expectedScore } from './elo';
 import { MatchQueue, allowedGap } from '../matchmaking/queue';
 
-const mk = (now = { t: 1000 }) => ({ now, s: new GameSession({ matchId: 'm', players: ['a', 'b'], now: () => now.t }) });
+const mk = (now = { t: 1000 }) => ({ now, s: new GameSession({ matchId: 'm', players: [{ userId: 'a' }, { userId: 'b' }], now: () => now.t }) });
 const shot = { strikerX: 500, angle: -Math.PI / 2, power: 0.6 };
 
 describe('GameSession anti-cheat', () => {
@@ -39,7 +39,7 @@ describe('GameSession anti-cheat', () => {
     expect(s.snapshot().players[1].connected).toBe(true);
     s.setConnected('b', false);
     now.t += 31_000;
-    expect(s.checkTimeouts()).toEqual({ forfeit: 1 });
+    expect(s.checkTimeouts()).toEqual({ kind: 'forfeit', side: 1 });
     expect(s.state.winner).toBe(0);
   });
   it('snapshot hides nothing the client could not already see and has all coins', () => {
@@ -78,5 +78,77 @@ describe('matchmaking', () => {
     const q = new MatchQueue();
     q.add(e('a', 1000, 0));
     expect(q.findPairs(100_000)).toHaveLength(0);
+  });
+});
+
+describe('GameSession extras', () => {
+  const noMove = { strikerX: 500, angle: -Math.PI / 2, power: 0.05 };
+  const mk4 = (now = { t: 1000 }) => ({ now, s: new GameSession({ matchId: 'm4', players: [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }, { userId: 'd' }], now: () => now.t }) });
+
+  it('4-player doubles: teammates alternate, opponents are teams', () => {
+    const { s, now } = mk4();
+    expect(s.shooter().userId).toBe('a');
+    expect(s.submitShot('c', noMove)).toMatchObject({ ok: false, reason: 'not_your_turn' }); // teammate must wait
+    now.t += 500; expect(s.submitShot('a', noMove).ok).toBe(true);
+    expect(s.shooter().userId).toBe('b');
+    now.t += 500; expect(s.submitShot('b', noMove).ok).toBe(true);
+    expect(s.shooter().userId).toBe('c'); // team 0's second player
+    expect(s.sideOf('c')).toBe(0);
+    expect(s.sideOf('d')).toBe(1);
+  });
+  it('rejects 3 players', () => {
+    expect(() => new GameSession({ matchId: 'x', players: [{ userId: 'a' }, { userId: 'b' }, { userId: 'c' }] })).toThrow();
+  });
+  it('turn timer passes the turn, and three timeouts in a row forfeit', () => {
+    const { s, now } = mk();
+    now.t += 46_000;
+    expect(s.checkTimeouts()).toMatchObject({ kind: 'turn_timeout', userId: 'a' });
+    expect(s.state.current).toBe(1);
+    now.t += 46_000; expect(s.checkTimeouts()).toMatchObject({ kind: 'turn_timeout', userId: 'b' });
+    now.t += 46_000; expect(s.checkTimeouts()).toMatchObject({ kind: 'turn_timeout', userId: 'a' });
+    now.t += 46_000; expect(s.checkTimeouts()).toMatchObject({ kind: 'turn_timeout', userId: 'b' });
+    now.t += 46_000; expect(s.checkTimeouts()).toMatchObject({ kind: 'forfeit', side: 0 });
+    expect(s.state.winner).toBe(1);
+  });
+  it('a timed match ends on score when the clock runs out', () => {
+    const now = { t: 1000 };
+    const s = new GameSession({ matchId: 't', players: [{ userId: 'a' }, { userId: 'b' }], durationMs: 60_000, turnTimeMs: 600_000, now: () => now.t });
+    s.state = { ...s.state, scores: [3, 1] };
+    now.t += 61_000;
+    expect(s.checkTimeouts()).toEqual({ kind: 'time_up' });
+    expect(s.state.winner).toBe(0);
+    expect(s.endReason).toBe('time');
+  });
+  it('time spent waiting for a reconnect does not consume the turn clock', () => {
+    const { s, now } = mk();
+    now.t += 30_000;
+    s.setConnected('b', false);
+    expect(s.paused).toBe(true);
+    expect(s.submitShot('a', noMove)).toMatchObject({ ok: false, reason: 'game_paused' });
+    now.t += 20_000; // still inside the 30s window... plus turn would have expired if the clock ran
+    expect(s.checkTimeouts()).toBeNull();
+    s.setConnected('b', true);
+    expect(s.paused).toBe(false);
+    now.t += 5_000;
+    expect(s.checkTimeouts()).toBeNull(); // 35s of real turn time, not 55
+  });
+  it('rejects a striker placed on top of a coin', () => {
+    const { s } = mk();
+    s.state = { ...s.state, world: { ...s.state.world, bodies: [...s.state.world.bodies, { id: 99, kind: 'black', x: 500, y: 850, vx: 0, vy: 0, radius: 16, mass: 1, pocketed: false }] } };
+    expect(s.submitShot('a', shot)).toMatchObject({ ok: false, reason: 'illegal_placement' });
+  });
+  it('serializes and restores a live game (server restart)', () => {
+    const { s, now } = mk();
+    now.t += 500; s.submitShot('a', { strikerX: 500, angle: -Math.PI / 2, power: 0.9 });
+    const copy = GameSession.restore(JSON.parse(JSON.stringify(s.serialize())), () => now.t);
+    expect(copy.state.scores).toEqual(s.state.scores);
+    expect(copy.state.world.bodies.length).toBe(s.state.world.bodies.length);
+    expect(copy.shooter().userId).toBe(s.shooter().userId);
+    expect(copy.paused).toBe(true); // everyone must reconnect after a restart
+  });
+  it('records per-player stats', () => {
+    const { s } = mk();
+    s.submitShot('a', { strikerX: 500, angle: -Math.PI / 2, power: 0.9 });
+    expect(s.stats.a.shots).toBe(1);
   });
 });

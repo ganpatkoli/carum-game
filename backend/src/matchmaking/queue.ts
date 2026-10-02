@@ -31,6 +31,13 @@ export class MatchQueue {
   has(userId: string) { return this.entries.has(userId); }
   get size() { return this.entries.size; }
 
+  /** Remove and return everyone who has waited at least `ms` (used to fill with a bot opponent). */
+  takeWaiting(ms: number, now = Date.now()): QueueEntry[] {
+    const out = [...this.entries.values()].filter((e) => now - e.joinedAt >= ms);
+    for (const e of out) this.entries.delete(e.userId);
+    return out;
+  }
+
   /** Longest-waiting players are paired first, each with their closest-rated compatible opponent. */
   findPairs(now = Date.now()): [QueueEntry, QueueEntry][] {
     const pairs: [QueueEntry, QueueEntry][] = [];

@@ -1,7 +1,7 @@
 import { initialWorld } from './board';
 import { DEFAULT_PHYSICS } from './config';
-import { isStrikerPlacementFree, simulateShot, validateShot } from './physics';
-import type { Body, PhysicsConfig, Shot, World } from './types';
+import { isStrikerPlacementFree, simulateShot, validateShot, type SimOptions } from './physics';
+import type { Body, Frame, HitEvent, PhysicsConfig, PocketEvent, Shot, World } from './types';
 
 export interface RuleConfig {
   queenEnabled: boolean;
@@ -100,7 +100,12 @@ function returnCoin(world: World, kind: 'black' | 'white' | 'queen', c: PhysicsC
   }
 }
 
-export interface ShotResult { state: GameState; events: GameEvent[] }
+export interface ShotResult {
+  state: GameState;
+  events: GameEvent[];
+  /** present when applyShot was called with record: true */
+  sim?: { frames: Frame[]; hits: HitEvent[]; pockets: PocketEvent[] };
+}
 
 /** Pure: does not mutate the input state. */
 export function applyShot(
@@ -108,6 +113,7 @@ export function applyShot(
   shot: Shot,
   rules: RuleConfig = DEFAULT_RULES,
   c: PhysicsConfig = DEFAULT_PHYSICS,
+  opts: SimOptions = {},
 ): ShotResult {
   if (prev.winner !== null) throw new Error('game already finished');
   const err = validateShot(shot);
@@ -117,7 +123,8 @@ export function applyShot(
   const opp = other(side);
   const mine = ownColor(prev, side);
   const theirs = ownColor(prev, opp);
-  const out = simulateShot(prev.world, side, shot, c);
+  const out = simulateShot(prev.world, side, shot, c, opts);
+  const sim = opts.record ? { frames: out.frames ?? [], hits: out.hits ?? [], pockets: out.pockets ?? [] } : undefined;
   const events: GameEvent[] = [];
 
   const s: GameState = {
@@ -177,7 +184,7 @@ export function applyShot(
     events.push({ type: 'turn_changed', to: opp });
     s.scores[side] = Math.max(0, s.scores[side]);
     events.push({ type: 'score_updated', scores: s.scores });
-    return finish(s, events, rules, side, c);
+    return finish(s, events, rules, side, c, sim);
   }
 
   s.consecutiveFouls[side] = 0;
@@ -221,10 +228,10 @@ export function applyShot(
     events.push({ type: 'turn_changed', to: opp });
   }
   events.push({ type: 'score_updated', scores: s.scores });
-  return finish(s, events, rules, side, c);
+  return finish(s, events, rules, side, c, sim);
 }
 
-function finish(s: GameState, events: GameEvent[], rules: RuleConfig, last: Side, _c: PhysicsConfig): ShotResult {
+function finish(s: GameState, events: GameEvent[], rules: RuleConfig, last: Side, _c: PhysicsConfig, sim?: ShotResult['sim']): ShotResult {
   const total = 9;
   const queenSettled = !rules.queenEnabled || s.queen.status === 'covered';
   for (const side of [0, 1] as Side[]) {
@@ -243,5 +250,5 @@ function finish(s: GameState, events: GameEvent[], rules: RuleConfig, last: Side
   }
   if (s.winner !== null) events.push({ type: 'game_finished', winner: s.winner });
   void last;
-  return { state: s, events };
+  return { state: s, events, sim };
 }
