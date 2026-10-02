@@ -2,7 +2,7 @@ export const theme = { bg: '#0f1115', card: '#1b1f27', text: '#f4f1ea', muted: '
 
 /** Board skins — more can be delivered from the admin panel. */
 export const boardThemes = {
-  classic: { surface: '#e8c58a', frame: '#7a4a1e', line: '#2a1a0a' },
+  classic: { surface: '#f0cf93', frame: '#8a4f1c', line: '#3a2410' },
   royal: { surface: '#d9b8e8', frame: '#4b2a6e', line: '#2a1040' },
   neon: { surface: '#0b1020', frame: '#00e5ff', line: '#ff2bd6' },
   dark: { surface: '#2a2d34', frame: '#111318', line: '#8a8f99' },
